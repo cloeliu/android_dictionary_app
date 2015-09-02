@@ -25,10 +25,6 @@ import com.loopj.android.http.RequestParams;
 import org.apache.http.Header;
 import org.json.JSONObject;
 
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
-
 
 public class DetailActivity extends BaseActivity {
     private String query;
@@ -44,6 +40,7 @@ public class DetailActivity extends BaseActivity {
     private ProgressBar prgRolling;
     private Layout loInfo;
     private String soundUrl;
+    private MediaPlayer mediaPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +51,8 @@ public class DetailActivity extends BaseActivity {
         query = i.getStringExtra("etQuery");
         isValidWord = false;
         soundUrl = "";
+
+        mediaPlayer = new MediaPlayer();
 
         tvTitle = (TextView)findViewById(R.id.tvTitle);
         tvPronunciation = (TextView)findViewById(R.id.tvPronunciation);
@@ -68,6 +67,7 @@ public class DetailActivity extends BaseActivity {
         tvTitle.setText(query);
 
         ibPlaySound.setVisibility(View.INVISIBLE);
+        /*
         // calling API and to simulate network latency
         prgRolling.setVisibility(View.VISIBLE);
         int latency = new Random().nextInt((1000 - 500) + 1) + 500;
@@ -82,6 +82,14 @@ public class DetailActivity extends BaseActivity {
                 });
             }
         }, latency);
+        */
+        getTranslation(query);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mediaPlayer.release();
     }
 
     private void getTranslation(String inputString) {
@@ -186,11 +194,11 @@ public class DetailActivity extends BaseActivity {
         if(!soundUrl.equals("")) {
             try {
                 prgRolling.setVisibility(View.VISIBLE);
-                MediaPlayer player = new MediaPlayer();
-                player.setAudioStreamType(AudioManager.STREAM_MUSIC);
-                player.setDataSource(soundUrl);
-                player.prepareAsync();
-                player.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                mediaPlayer.reset();
+                mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                mediaPlayer.setDataSource(soundUrl);
+                mediaPlayer.prepareAsync();
+                mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                     @Override
                     public void onPrepared(MediaPlayer mp) {
                         prgRolling.setVisibility(View.INVISIBLE);

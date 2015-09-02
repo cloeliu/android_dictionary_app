@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
 import android.graphics.Rect;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
@@ -22,6 +24,13 @@ import android.widget.Toast;
 
 import com.hermitfang.socialdictionary.R;
 import com.hermitfang.socialdictionary.dialogs.ShareToTumblrDialog;
+import com.hermitfang.socialdictionary.models.DetailModel;
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.JsonHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
+
+import org.apache.http.Header;
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -58,22 +67,26 @@ public class GameActivity extends BaseActivity implements ShareToTumblrDialog.No
     TextView[] tvResult = new TextView[9];
     String[] question;
     int start;
+    boolean soundPlayed;
     TextView tvHint;
 
     TextView[] tvResult_2 = new TextView[9];
     String[] question_2;
     int start_2;
+    boolean soundPlayed2;
     TextView tvHint2;
 
     TextView[] tvResult_3 = new TextView[9];
     String[] question_3;
     int start_3;
+    boolean soundPlayed3;
     TextView tvHint3;
 
     String c;
 
     WordList wordList = new WordList();
     RelativeLayout layout;
+    MediaPlayer mediaPlayer;
 
     // screen shot variables
     private Bitmap screenShot;
@@ -91,13 +104,24 @@ public class GameActivity extends BaseActivity implements ShareToTumblrDialog.No
             tv[i].setOnTouchListener(new MyTouchListener());
         }
 
+        mediaPlayer = new MediaPlayer();
         load_question();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mediaPlayer.release();
     }
 
     public void load_question() {
         question = wordList.getOne();
         tvHint = (TextView) findViewById(R.id.tvHint);
         tvHint.setText(question[1]);
+
+        soundPlayed = false;
+        soundPlayed2 = false;
+        soundPlayed3 = false;
 
         start = (ResourceTvResult.length - question[0].length() ) / 2 ;
 
@@ -294,7 +318,26 @@ public class GameActivity extends BaseActivity implements ShareToTumblrDialog.No
             }
         }
 
-        if ( question[0].equalsIgnoreCase(result) && question_2[0].equalsIgnoreCase(result2) && question_3[0].equalsIgnoreCase(result3) ) {
+        if (!soundPlayed && question[0].equalsIgnoreCase(result)) {
+            Toast.makeText(this, "Bingo: " + result.toLowerCase(), Toast.LENGTH_SHORT).show();
+            playSound(result);
+            soundPlayed = true;
+        }
+
+        if (!soundPlayed2 && question_2[0].equalsIgnoreCase(result2)){
+            Toast.makeText(this, "Bingo: " + result2.toLowerCase(), Toast.LENGTH_SHORT).show();
+            playSound(result2);
+            soundPlayed2 = true;
+        }
+
+        if (!soundPlayed3 && question_3[0].equalsIgnoreCase(result3)) {
+            Toast.makeText(this, "Bingo: " + result3.toLowerCase(), Toast.LENGTH_SHORT).show();
+            playSound(result3);
+            soundPlayed3 = true;
+        }
+
+        //if ( question[0].equalsIgnoreCase(result) && question_2[0].equalsIgnoreCase(result2) && question_3[0].equalsIgnoreCase(result3) ) {
+        if (soundPlayed && soundPlayed2 && soundPlayed3) {
             Toast.makeText(this, "Bingo, you got the right answer.", Toast.LENGTH_SHORT).show();
             showShareDialog("success");
         }
@@ -415,6 +458,55 @@ public class GameActivity extends BaseActivity implements ShareToTumblrDialog.No
     public void showHomeSearch(MenuItem item) {
         Intent i = new Intent(this, DictionaryActivity.class);
         startActivity(i);
+    }
+
+    public void playSound(String input) {
+        String inputString = input.toLowerCase();
+        String url = "http://lumpedjumped.corp.sg3.yahoo.com:8666/api/query";
+        RequestParams p = new RequestParams();
+        p.put("p", inputString);
+
+        AsyncHttpClient client = new AsyncHttpClient(8666, 443);
+        client.get(url, p, new JsonHttpResponseHandler() {
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                Log.i("DEBUG", response.toString());
+                DetailModel m = new DetailModel(response);
+
+                String s = m.getExample();
+                if (!s.equals("")) {
+                    String mp3 = m.getSoundUrl();
+                    if (!mp3.equals("")) {
+                        try {
+                            mediaPlayer.reset();
+                            mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+                            mediaPlayer.setDataSource(mp3);
+                            mediaPlayer.prepareAsync();
+                            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+                                @Override
+                                public void onPrepared(MediaPlayer mp) {
+                                    mp.start();
+                                }
+                            });
+                        } catch (Exception e) {
+                            Log.i("DEBUG", "play sound " + mp3 + " error");
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, Throwable throwable, JSONObject errorResponse) {
+                if (throwable.getMessage().toLowerCase().indexOf("unknownhostexception") != -1) {
+                    Log.i("DEBUG", "API host is not reachable");
+                    return;
+                }
+                if (errorResponse != null)
+                    Log.i("DEBUG", errorResponse.toString());
+                else
+                    Log.i("DEBUG", "error is even null");
+            }
+        });
     }
 }
 
