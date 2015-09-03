@@ -10,7 +10,7 @@
 
     <item
         android:id="@+id/dictionary"
-        android:icon="@drawable/ic_action_dictionary"
+        android:icon="@drawable/ic_home"
         android:onClick="showDictionaryQuery"
         app:showAsAction="ifRoom"
         android:title="Dictionary"/>
